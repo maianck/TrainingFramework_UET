@@ -342,3 +342,4 @@ healthchecksdb
 # vcxproj file
 TrainingFramework/TrainingFramework.vcxproj
 Utilities\Utilities.vcxproj
+/TrainingFramework_UET

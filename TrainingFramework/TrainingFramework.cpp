@@ -9,6 +9,7 @@
 #include "Vertex.h"
 #include "Shaders.h"
 #include "Texture.h"
+#include "Model.h"
 
 int Globals::keyPressed = 0;
 std::shared_ptr<Camera> gCamera;
@@ -17,7 +18,10 @@ GLuint vboId, iboId;
 Shaders* shader;
 Matrix WVP, W;
 
-int Init(ESContext *esContext)
+Model* model;
+Texture* texture;
+
+int Init(ESContext* esContext)
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -27,29 +31,35 @@ int Init(ESContext *esContext)
 	// TODO: Initialize data here
 
 	// Init vertices data
-	Vertex verticesData[3];
+	/*Vertex verticesData[3];
 	verticesData[0].pos = Vector3(0.0f, 1.0f, 0.0f);
 	verticesData[1].pos = Vector3(-1.0f, -1.0f, 0.0f);
-	verticesData[2].pos = Vector3(1.0f, -1.0f, 0.0f);
+	verticesData[2].pos = Vector3(1.0f, -1.0f, 0.0f);*/
 
 	// Push vertices data to GPU
-	glGenBuffers(1, &vboId);
-	glBindBuffer(GL_ARRAY_BUFFER, vboId);
-	glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(Vertex), verticesData, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	//glGenBuffers(1, &vboId);
+	//glBindBuffer(GL_ARRAY_BUFFER, vboId);
+	//glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(Vertex), verticesData, GL_STATIC_DRAW);
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	model = new Model();
+	model->LoadNfg("../Resources/Models/Woman1.nfg");
 
 	// Init indices data
 	unsigned int indicesData[] = { 0, 1, 2 };
 
 	// Push indices data to GPU
-	glGenBuffers(1, &iboId);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboId);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * sizeof(unsigned int), indicesData, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	//glGenBuffers(1, &iboId);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboId);
+	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * sizeof(unsigned int), indicesData, GL_STATIC_DRAW);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	// Init shader
 	shader = new Shaders();
 	shader->Init("../Resources/Shaders/Object.vs", "../Resources/Shaders/Object.fs");
+
+	texture = new Texture();
+	texture->InitTexture2D("../Resources/Textures/Woman1.tga");
 
 	// Init WVP matrix
 	W = Matrix().SetScale(1.0f, 1.0f, 1.0f)
@@ -63,21 +73,30 @@ int Init(ESContext *esContext)
 
 }
 
-void Draw(ESContext *esContext)
+void Draw(ESContext* esContext)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// TODO: Draw something here
 
 	glUseProgram(shader->program);
-	glBindBuffer(GL_ARRAY_BUFFER, vboId);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboId);
+	//glBindBuffer(GL_ARRAY_BUFFER, vboId);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboId);
+	glBindBuffer(GL_ARRAY_BUFFER, model->GetVboId());
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->GetIboId());
 
 	GLint positionAtrribute = glGetAttribLocation(shader->program, "a_posL");
 	if (positionAtrribute != -1)
 	{
 		glEnableVertexAttribArray(positionAtrribute);
-		glVertexAttribPointer(positionAtrribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*) OFFSET_POS);
+		glVertexAttribPointer(positionAtrribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)OFFSET_POS);
+	}
+
+	GLint uvAtrribute = glGetAttribLocation(shader->program, "a_uv");
+	if (uvAtrribute != -1)
+	{
+		glEnableVertexAttribArray(uvAtrribute);
+		glVertexAttribPointer(uvAtrribute, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)OFFSET_UV);
 	}
 
 	GLint wvpUniform = glGetUniformLocation(shader->program, "u_wvpMatrix");
@@ -86,7 +105,16 @@ void Draw(ESContext *esContext)
 		glUniformMatrix4fv(wvpUniform, 1, GL_FALSE, &WVP.m[0][0]);
 	}
 
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+	GLint textureUniform = glGetUniformLocation(shader->program, "u_texture");
+	if (textureUniform != -1)
+	{
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture->GetTextureId());
+		glUniform1i(textureUniform, 0);
+	}
+
+	//glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, model->GetNumberOfIndices(), GL_UNSIGNED_INT, 0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -94,7 +122,7 @@ void Draw(ESContext *esContext)
 	eglSwapBuffers(esContext->eglDisplay, esContext->eglSurface);
 }
 
-void Update(ESContext *esContext, float deltaTime)
+void Update(ESContext* esContext, float deltaTime)
 {
 	// TODO: Update scene objects here
 	gCamera->Update(deltaTime);
@@ -103,7 +131,7 @@ void Update(ESContext *esContext, float deltaTime)
 	WVP = W * V * P;
 }
 
-void OnKeyEvent(ESContext *esContext, unsigned char key, bool bIsPressed)
+void OnKeyEvent(ESContext* esContext, unsigned char key, bool bIsPressed)
 {
 	// TODO: Handle key events
 	if (bIsPressed)
@@ -168,7 +196,7 @@ void OnKeyEvent(ESContext *esContext, unsigned char key, bool bIsPressed)
 	}
 }
 
-void OnMouseEvent(ESContext *esContext, unsigned char type, int x, int y)
+void OnMouseEvent(ESContext* esContext, unsigned char type, int x, int y)
 {
 	// TODO: Handle mouse events
 	switch (type)
