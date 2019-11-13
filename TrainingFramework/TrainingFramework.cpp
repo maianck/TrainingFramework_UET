@@ -16,10 +16,12 @@ std::shared_ptr<Camera> gCamera;
 
 GLuint vboId, iboId;
 Shaders* shader;
-Matrix WVP, W;
+Matrix WVP, W, W1, W1VP;
 
 Model* model;
+Model* model1;
 Texture* texture;
+Texture* texture1;
 
 int Init(ESContext* esContext)
 {
@@ -31,10 +33,16 @@ int Init(ESContext* esContext)
 	// TODO: Initialize data here
 
 	// Init vertices data
-	/*Vertex verticesData[3];
-	verticesData[0].pos = Vector3(0.0f, 1.0f, 0.0f);
+	Vertex verticesData[4];
+	verticesData[0].pos = Vector3(-1.0f, 1.0f, 0.0f);
 	verticesData[1].pos = Vector3(-1.0f, -1.0f, 0.0f);
-	verticesData[2].pos = Vector3(1.0f, -1.0f, 0.0f);*/
+	verticesData[2].pos = Vector3(1.0f, -1.0f, 0.0f);
+	verticesData[3].pos = Vector3(1.0f, 1.0f, 0.0f);
+
+	verticesData[0].uv = Vector2(0.0f, 1.0f);
+	verticesData[1].uv = Vector2(0.0f, 0.0f);
+	verticesData[2].uv = Vector2(1.0f, 0.0f);
+	verticesData[3].uv = Vector2(1.0f, 1.0f);
 
 	// Push vertices data to GPU
 	//glGenBuffers(1, &vboId);
@@ -44,9 +52,11 @@ int Init(ESContext* esContext)
 
 	model = new Model();
 	model->LoadNfg("../Resources/Models/Woman1.nfg");
+	model1 = new Model();
+	model1->LoadNfg("../Resources/Models/Woman2.nfg");
 
 	// Init indices data
-	unsigned int indicesData[] = { 0, 1, 2 };
+	unsigned int indicesData[] = { 0, 1, 2, 2, 3, 0 };
 
 	// Push indices data to GPU
 	//glGenBuffers(1, &iboId);
@@ -60,14 +70,20 @@ int Init(ESContext* esContext)
 
 	texture = new Texture();
 	texture->InitTexture2D("../Resources/Textures/Woman1.tga");
+	texture1 = new Texture();
+	texture1->InitTexture2D("../Resources/Textures/Woman2.tga");
 
 	// Init WVP matrix
 	W = Matrix().SetScale(1.0f, 1.0f, 1.0f)
-		* Matrix().SetRotationY(TO_RAD(45))
-		* Matrix().SetTranslation(0.0f, 0.0f, 0.0f);
+		* Matrix().SetRotationY(TO_RAD(30))
+		* Matrix().SetTranslation(-1.0f, -0.5f, 0.0f);
+	W1 = Matrix().SetScale(1.0f, 1.0f, 1.0f)
+		* Matrix().SetRotationY(TO_RAD(-30))
+		* Matrix().SetTranslation(1.0f, -0.5f, 0.0f);
 	Matrix V = gCamera->GetViewMatrix();
 	Matrix P = gCamera->GetProjecttionMatrix();
 	WVP = W * V * P;
+	W1VP = W1 * V * P;
 
 	return 0;
 
@@ -79,6 +95,7 @@ void Draw(ESContext* esContext)
 
 	// TODO: Draw something here
 
+	//Draw first object
 	glUseProgram(shader->program);
 	//glBindBuffer(GL_ARRAY_BUFFER, vboId);
 	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboId);
@@ -116,6 +133,44 @@ void Draw(ESContext* esContext)
 	//glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 	glDrawElements(GL_TRIANGLES, model->GetNumberOfIndices(), GL_UNSIGNED_INT, 0);
 
+	//Draw second object
+	glUseProgram(shader->program);
+	//glBindBuffer(GL_ARRAY_BUFFER, vboId);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iboId);
+	glBindBuffer(GL_ARRAY_BUFFER, model1->GetVboId());
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model1->GetIboId());
+
+	GLint positionAtrribute1 = glGetAttribLocation(shader->program, "a_posL");
+	if (positionAtrribute1 != -1)
+	{
+		glEnableVertexAttribArray(positionAtrribute1);
+		glVertexAttribPointer(positionAtrribute1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)OFFSET_POS);
+	}
+
+	GLint uvAtrribute1 = glGetAttribLocation(shader->program, "a_uv");
+	if (uvAtrribute1 != -1)
+	{
+		glEnableVertexAttribArray(uvAtrribute1);
+		glVertexAttribPointer(uvAtrribute1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)OFFSET_UV);
+	}
+
+	GLint wvpUniform1 = glGetUniformLocation(shader->program, "u_wvpMatrix");
+	if (wvpUniform1 != -1)
+	{
+		glUniformMatrix4fv(wvpUniform1, 1, GL_FALSE, &W1VP.m[0][0]);
+	}
+
+	GLint textureUniform1 = glGetUniformLocation(shader->program, "u_texture");
+	if (textureUniform1 != -1)
+	{
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture1->GetTextureId());
+		glUniform1i(textureUniform1, 0);
+	}
+
+	//glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, model1->GetNumberOfIndices(), GL_UNSIGNED_INT, 0);
+
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -129,6 +184,7 @@ void Update(ESContext* esContext, float deltaTime)
 	Matrix V = gCamera->GetViewMatrix();
 	Matrix P = gCamera->GetProjecttionMatrix();
 	WVP = W * V * P;
+	W1VP = W1 * V * P;
 }
 
 void OnKeyEvent(ESContext* esContext, unsigned char key, bool bIsPressed)
